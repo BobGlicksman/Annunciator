@@ -133,18 +133,16 @@ void setup() {
     miniMP3Player.begin(Serial1);
     miniMP3Player.volume(30);       // set the max volume - it may be changed when playing a clip
 
-    // set initial state of external LEDs
+    // set initial state of green LED
     digitalWrite(GREEN_LED_PIN, LOW);
-    digitalWrite(RED_LED_PIN, HIGH);    // indicate powered, connected to WiFi and ready 
 
     // signal end of setup
     digitalWrite(STATUS_LED_PIN, HIGH);
     delay(1000);
     digitalWrite(STATUS_LED_PIN, LOW);
 
-    digitalWrite(STATUS_LED_PIN, HIGH);
-    delay(1000);
-    digitalWrite(STATUS_LED_PIN, LOW);
+    digitalWrite(RED_LED_PIN, HIGH);    // indicate powered, connected to WiFi and ready
+
 }   // end of setup()
 
 // loop() runs over and over again, as quickly as it can execute.
