@@ -1,10 +1,82 @@
 /* 
- * Aunnciator:  Software to subscribe to an event and play an associated clip.
- *  
+ * Aunnciator:  Software to subscribe to a Particle event and play an associated audio clip.
+ *
+ *  Uses the Animatronic Mouth circuit board to play a voice clip associated with a Particle
+ *  event.  See https://github.com/TeamPracticalProjects/Animatronics for details of the
+ *  Mouth circuit board.  Note: the Animatronic Mouth circuit board contains analog
+ *  processing circuitry to shape and extract the envelope of the audio clip.  This
+ *  analog circuitry is not used for this project and need not be populated on the circuit
+ *  board.
+ * 
+ *  This project was developed to play a voice clip associated with a Hub publication
+ *  from the LoRa sensor project; see: https://github.com/TeamPracticalProjects/LoRa.
+ *  However, it may be used in conjunction with any publisher of Particle events.  When used
+ *  in conjunction with the LoRa sensor project, the published event data is parsed to determine
+ *  the proper clip to play (based upon the sensor ID).  This event data parsing and clip 
+ *  determination is, obviously, application dependent.
+ * 
+ *  This project uses the DFRobot miniMP3 player to play recorded MP3 voice clips.  An inexpensive
+ *  source for this module is:
+ *       https://www.amazon.com/dp/B08V8G1TQZ?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1
+ * 
+ *  The voice clips must be placed in an /MP3/ folder under the root of a micro SD card (32 GB or less).
+ *  The clip to play is designated by the ordinal number of the voice clip in this folder.  In order
+ *  to ensure a proper mapping of ordinal clip numbers to audio clip files, the file name of
+ *  each clip should begin with a number, e.g. 0000clipA, 0001clipB, ...).
+ * 
+ *  This project uses a Particle Photon 1, which is currently deprecated in favor of Photon 2.
+ *  Particle sells a Photon 2 to Photon 1 adator socket, which may be suitable for this project.
+ *  However, it should be noted that the DFRobotDFPlayerMini library used has some bugs in it;
+ *  specifically, several functions with non-void return values are lacking return statements.
+ *  Particle OS versions above 3.0.0 treat these bugs as fatal errors and won't compile the
+ *  code.  Particle OS 3.0.0 treats these errors as warnings and compiles just fine.  (The library
+ *  functions with these errors in them are not used in this project.) As a consequence of these bugs,
+ *  the code cannot be compiled for Photon 2 until either (a) the library bugs are fixed, or (b)
+ *  Particle supplies a build option that treats these errors as warnings, or (c) a different
+ *  library is adopted (which will likely change the code).
+ * 
+ *  In addition to the populated circuit board, the following external conponents are used
+ *  in this project.
+ * 
+ *      - Either a small speaker (< 3 watts) or an amplified playback device that connects via
+ *          a stereo headphone jack.
+ * 
+ *      - A RED LED, controlled by Photon pin D5, that indicates that the device is running
+ *          and connected to the Particle cloud.
+ * 
+ *      - a GREEN LED, controlled by Photon pin D6, which may be the backlight on the pushbutton.
+ *          It indicates that a clip is currently being played. 
+ * 
+ *      - a momentary pushbutton, read from Photon pin A3, which can be pressed to replay the
+ *          current audio clip. 
+ * 
+ *  A number of Particle Cloud variables and functions are included for testing purposes.
+ *  These may be accessed using the Particle Console or a dedicated app:
+ *      - Cloud variables:
+ *          * FIRMWARE VERSION:  displays the version of the firmware that is installed on
+ *              the Photon device.
+ *          * MASTER VOLUME CONTROL: displays the current master volume control setting: 0 - 100%
+ *          * CURRENT CLIP NUMBER: displays the number of the clip that is the current clip to be 
+ *              played.
+ *          *EVENT DATA: displays the data string from the last event that triggered clip playing
+ *              (useful for debugging event data parsing).
+ * 
+ *      - Cloud functions:
+ *          * SET MASTER VOLUME LEVEL:  accepts a value 0 - 100 (%) so that a particular
+ *              annunciator device's volume can be set to be compatible with the installed
+ *              environment.
+ *          * PLAY CLIP: plays the clip whose number is the argument to this function.  NOTE:
+ *              this is the actual ordinal number of the clip in the /MP3/ folder on the SD
+ *              card and not the number of the sensor from the event data that maps to a clip.
+ * 
+ * 
+ *  version 0.9 (pre-release); by Bob Glicksman; 3/23/25
+ * 
+ *  (c) 2025, Team Practical Projects, Bob Glicksman, Jim Schrempp.  All rights reserved.
  * 
  */
 
-#define VERSION "0.5" // This is still an in-process development version
+#define VERSION "0.9" // This is still an in-process development version
 
 // NOTE:  MUST USE PARTICLE OS VERSION 3.0.0 OWING TO BUGS IN MINI MP3 PLAYER LIBRARY.
   //    Specifically, some functions have non-void return value declared but no return statement.
@@ -44,6 +116,14 @@ enum StateVariable {
     paused
 };
 
+  // define enumerated state variable for buttonPressed() function
+enum ButtonStates {
+    buttonOff,    // the button is not pressed
+    pressedTentative,   // button seems to be pressed, need debounce verification
+    buttonOn, // button remains pressed but don't indicate true anymore
+    releasedTentative  // button seems to be released, need verificaton
+};
+
   // Other globals
 int relativeVolumeControl = 100;  // value between 0 and 100 (%); Preset to 100%
 int currentClip = 0;    // number of the last clip played
@@ -51,12 +131,15 @@ bool newClip2Play = false;  // set to true to indicate that there is a new clip 
 bool greenLEDFlash = false; // set to true to start the green LED flashing; false to stop it.
 String version = VERSION;
 
+String eventDataString = "";    // string to hold event data for debugging
+
 // Include the mp3 player library
 #include <DFRobotDFPlayerMini.h>
 
 // Create an instance of the miniMP3 player
 DFRobotDFPlayerMini miniMP3Player;
 
+/****************************** CLOUD FUNCTIONS ************************************/
 // Cloud function to set the master volume level
 int setVolume(String volumeControl) {
     int volume = volumeControl.toInt();
@@ -87,6 +170,7 @@ int playClip(String clipNumber) {
 
 }   // end of playClip()
 
+/************************** OTHER FUNCTIONS CALLED BY SETUP OR LOOP ***************************/
 // function to flash the green LED rapidly (called from a non-blocking loop())
 void flashLED() {
     #define BLINK_TIME 100  // turn on and off every 100 ms
@@ -110,6 +194,96 @@ void flashLED() {
     }
 }   // end of flashLED()
 
+// function to perform non-blocking reading and debouncing of a pushbutton switch
+bool buttonPressed() {
+    static ButtonStates _buttonState = buttonOff;
+    static unsigned long lastTime = millis();
+
+    switch(_buttonState) {
+
+    case buttonOff:
+        if(digitalRead(BUTTON_PIN) == HIGH) { // button not pressed
+            _buttonState = buttonOff;
+            return false;
+        }
+        else {  // button is pressed, need to debounce and verify
+            lastTime = millis();  // set up the timer'
+            _buttonState = pressedTentative;
+            return false;
+        }
+
+    case pressedTentative:   // button seems to be pressed, need debounce verification
+        if(digitalRead(BUTTON_PIN) == HIGH) { // button not pressed
+            _buttonState = buttonOff;
+            return false;
+        }
+        else {  // button is pressed
+            if( (millis() - lastTime < DEBOUNCE_TIME)) { // button not yet debounced
+                _buttonState = pressedTentative; 
+                return false;
+            }
+            else {  // button is debounced
+                _buttonState = buttonOn;
+                return true;  // tell caller that the button has been presed
+            }
+        }
+
+    case buttonOn: // button remains pressed but don't indicate true anymore
+        if(digitalRead(BUTTON_PIN) == LOW)  { // button remains pressed, stay here
+            _buttonState = buttonOn;
+            return false;
+        }
+        else {  // button tentatively released, need to verify
+            lastTime = millis();  // set timer for debounce
+            _buttonState = releasedTentative;
+            return false;
+        }
+
+    case releasedTentative:  // button seems to be released, need verificaton
+        if(digitalRead(BUTTON_PIN) == HIGH) { // button still released
+            if( (millis() - lastTime < DEBOUNCE_TIME)) {  // not yet debounced
+                _buttonState = releasedTentative;
+                return false;
+            }
+            else {  // debounced and verified released
+                _buttonState = buttonOff;
+                return false;
+            }
+        }
+        else {  // false reading, button still pressed
+            _buttonState = buttonOn;
+            return false;
+        }
+
+    default:
+        if(digitalRead(BUTTON_PIN) == HIGH) { // button not pressed
+            _buttonState = buttonOff;
+            return false;
+        }
+        else {  // button is pressed
+            _buttonState = pressedTentative;
+            return false;
+        }
+  }
+
+} // end of buttonPressed()
+
+/*********************** EVENT HANDLER FOR THE EVENT SUBSCRIPTION ***************************/
+// event handler for subscription to hub publication event
+void particleCallbackEventPublish(const char *event, const char *data) {
+    String _eventName = String(event);
+    String _eventData = String(data);
+
+    // XXX code here to parse the event data
+
+    // XXX temporary code - just play the current clip
+    newClip2Play = true;
+    eventDataString = "";
+    eventDataString += _eventData;
+}   // end of particleCallbackEventPublish()
+
+
+/****************************** SETUP ************************************/
 // setup() runs once, when the device is first turned on
 void setup() {
     // Photon pin definitions
@@ -123,9 +297,13 @@ void setup() {
     Particle.variable("Firmware Version", version);
     Particle.variable("Master Volume Control", relativeVolumeControl);
     Particle.variable("Current Clip Number", currentClip);
+    Particle.variable("Event Data", eventDataString);
 
     Particle.function("Set Master Volume Level", setVolume); // call to set master volume level
     Particle.function("Play Clip", playClip);
+
+    // subscribe to the published Particle event that triggers a clip playback
+    Particle.subscribe("LoRaHubLogging", particleCallbackEventPublish, MY_DEVICES);
 
     // initialize serial ports and mini MP3 player
     Serial.begin(9600);
@@ -145,6 +323,7 @@ void setup() {
 
 }   // end of setup()
 
+/****************************** LOOP ************************************/
 // loop() runs over and over again, as quickly as it can execute.
 void loop() {
     static unsigned long busyTime = millis();
@@ -153,24 +332,29 @@ void loop() {
     // flash the green LED in non-blocking manner
     flashLED();
 
+    // test the replay button in a non-blocking manner
+    if(buttonPressed() == true) {
+        newClip2Play = true;    // set the flag to play the current clip at the correct state
+    }
+
     // state machine to play a clip and flash LED
     switch(state) {
         case idle:  // wait for event or other trigger
             if (digitalRead(BUSY_PIN) == HIGH)  {  // make sure MP3 player is ready
                 if(newClip2Play == true) {   // we must play the new clip
                     greenLEDFlash = true; // signal a new value
-                    busyTime = millis();    // startr the time for the next state
+                    busyTime = millis();    // start the time for the next state
                     state = triggered;
                 } else {
                     state = idle;
                 } 
                 
-            } else {    // stay in idle state until MP3 player busy pin is low
+            } else {    // stay in idle state until MP3 player busy pin is low (asserted)
                 state = idle;
             }
             break;
 
-        case triggered: // we must start playing the clip -- light (flash) green LED
+        case triggered: // we must start playing the clip -- light (flash) the green LED
             // keep the green LED lit (flashing) for a bit, and then start a clip playing
             if((millis() - busyTime) < BUSY_WAIT) { // stay in this state until time to play clip
                 state = triggered;
@@ -185,7 +369,7 @@ void loop() {
             }
             break;
 
-        case clipWaiting:   // wait fop MP3 player busy to asset (low)
+        case clipWaiting:   // wait fop MP3 player busy to assert (low)
             if(digitalRead(BUSY_PIN) == HIGH) {  // waiting for the clip to begin playing
                 state = clipWaiting;
             } else {    // clip is now playing
@@ -223,16 +407,10 @@ void loop() {
 
     } // end state machine
 
-    // test the replay button and replay the current clip as needed
-
-    // refresh flashing the green LED
-
-
-
 }   // end of loop()
 
 // Code needed:
-//  1. subscribe to the event.  Parse the sensor number and map it to proper clip number to play.
-//  2. add in a button.  Process and debounce button press and play the current clip.
+//  1. Parse the event data and index the proper clip for that data (device ID).
+
 
 
