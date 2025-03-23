@@ -4,7 +4,7 @@
  * 
  */
 
-#define VERSION 0.5 // This is still an in-process development version
+#define VERSION "0.5" // This is still an in-process development version
 
 // NOTE:  MUST USE PARTICLE OS VERSION 3.0.0 OWING TO BUGS IN MINI MP3 PLAYER LIBRARY.
   //    Specifically, some functions have non-void return value declared but no return statement.
@@ -27,8 +27,6 @@ SYSTEM_MODE(AUTOMATIC);
 #define BUTTON_PIN A3
 
 const unsigned long BUSY_WAIT = 1000UL;  // Busy pin wait time
-const unsigned long EYES_START_TIME = 0;  // time for eye sequence to start up
-const unsigned long EYES_COMPLETE_TIME = 1000UL; // time for eye sequence to stop
 const unsigned long DEBOUNCE_TIME = 10UL;  // time for button debouncing
 
 const uint8_t FIRST_CLIP_NUM = 11; // just for testing
@@ -50,6 +48,8 @@ enum StateVariable {
 int relativeVolumeControl = 100;  // value between 0 and 100 (%); Preset to 100%
 int currentClip = 0;    // number of the last clip played
 bool newClip2Play = false;  // set to true to indicate that there is a new clip to play
+bool greenLEDFlash = false; // set to true to start the green LED flashing; false to stop it.
+String version = VERSION;
 
 // Include the mp3 player library
 #include <DFRobotDFPlayerMini.h>
@@ -87,6 +87,29 @@ int playClip(String clipNumber) {
 
 }   // end of playClip()
 
+// function to flash the green LED rapidly (called from a non-blocking loop())
+void flashLED() {
+    #define BLINK_TIME 100  // turn on and off every 100 ms
+    static unsigned long timeInState = millis();
+    static bool onOff = false;
+
+    if(greenLEDFlash == false) {    // do not flash the green LED; turn it off
+        digitalWrite(GREEN_LED_PIN, LOW);
+    } else {    // flash the green LED
+        if((millis() - timeInState) > BLINK_TIME) { // time to toggle the LED state
+            if(onOff == false) {
+                digitalWrite(GREEN_LED_PIN, HIGH);
+                onOff = true;
+            } else {
+                digitalWrite(GREEN_LED_PIN, LOW);
+                onOff = false;
+            }
+            timeInState = millis();
+        }
+
+    }
+}   // end of flashLED()
+
 // setup() runs once, when the device is first turned on
 void setup() {
     // Photon pin definitions
@@ -97,6 +120,7 @@ void setup() {
     pinMode(BUTTON_PIN, INPUT_PULLUP);
 
     // Cloud variables and funtions
+    Particle.variable("Firmware Version", version);
     Particle.variable("Master Volume Control", relativeVolumeControl);
     Particle.variable("Current Clip Number", currentClip);
 
@@ -111,7 +135,7 @@ void setup() {
 
     // set initial state of external LEDs
     digitalWrite(GREEN_LED_PIN, LOW);
-    digitalWrite(RED_LED_PIN, LOW);
+    digitalWrite(RED_LED_PIN, HIGH);    // indicate powered, connected to WiFi and ready 
 
     // signal end of setup
     digitalWrite(STATUS_LED_PIN, HIGH);
@@ -128,12 +152,15 @@ void loop() {
     static unsigned long busyTime = millis();
     static StateVariable state = idle; // begin in the idle state
 
+    // flash the green LED in non-blocking manner
+    flashLED();
+
     // state machine to play a clip and flash LED
     switch(state) {
         case idle:  // wait for event or other trigger
             if (digitalRead(BUSY_PIN) == HIGH)  {  // make sure MP3 player is ready
                 if(newClip2Play == true) {   // we must play the new clip
-                    digitalWrite(GREEN_LED_PIN, HIGH); // signal a new value
+                    greenLEDFlash = true; // signal a new value
                     busyTime = millis();    // startr the time for the next state
                     state = triggered;
                 } else {
@@ -181,21 +208,14 @@ void loop() {
             if((millis() - busyTime) < BUSY_WAIT) { // keep green LED high (flashing)
                 state = clipComplete;
             } else { // turn green LED off (stop flashing)
-                digitalWrite(GREEN_LED_PIN, LOW);
+                greenLEDFlash = false;
                 state = clipEnd;
             }
             break;
 
         case clipEnd:   // flag that no clip is active
-            newClip2Play = false;
+            newClip2Play = false; // XXX can't command replay until here -- should this be sooner??
             state = idle;
-            break;
-
-
-        case paused:    // stay here until unpaused - don't play any clips
-
-
-
             break;
 
         default:    // the next state is idle
@@ -216,7 +236,5 @@ void loop() {
 // Code needed:
 //  1. subscribe to the event.  Parse the sensor number and map it to proper clip number to play.
 //  2. add in a button.  Process and debounce button press and play the current clip.
-//  3. Flash the green LED instead of just lighting it when playing is active.
-//  4. ?? need paused state?  I don't think so; delete it.  If you don't want an annunciator
-//        on, just unplug it or set its volume to zero.
+
 
