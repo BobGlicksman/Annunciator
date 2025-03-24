@@ -20,9 +20,10 @@
  *       https://www.amazon.com/dp/B08V8G1TQZ?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1
  * 
  *  The voice clips must be placed in an /MP3/ folder under the root of a micro SD card (32 GB or less).
- *  The clip to play is designated by the ordinal number of the voice clip in this folder.  In order
- *  to ensure a proper mapping of ordinal clip numbers to audio clip files, the file name of
- *  each clip should begin with a number, e.g. 0000clipA, 0001clipB, ...).
+ *  The clip to play is designated by the 4 digit number at the beginning of the file name of 
+ *  the voice clip in this folder.  In order to ensure a proper mapping of clip numbers to audio 
+ *  clip files, the file name of each clip should begin with a 4 digit number (e.g. 0000clipA.mp3, 
+ *  0001clipB.mp3, ...). 
  * 
  *  This project uses a Particle Photon 1, which is currently deprecated in favor of Photon 2.
  *  Particle sells a Photon 2 to Photon 1 adator socket, which may be suitable for this project.
@@ -70,7 +71,7 @@
  *              card and not the number of the sensor from the event data that maps to a clip.
  * 
  * 
- *  version 0.9 (pre-release); by Bob Glicksman; 3/23/25
+ *  version 0.9.1 (pre-release); by Bob Glicksman; 3/23/25
  * 
  *  (c) 2025, Team Practical Projects, Bob Glicksman, Jim Schrempp.  All rights reserved.
  * 
