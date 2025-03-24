@@ -71,13 +71,17 @@
  *              card and not the number of the sensor from the event data that maps to a clip.
  * 
  * 
- *  version 0.9.1 (pre-release); by Bob Glicksman; 3/23/25
+ *  version 0.9.8 (pre-release); by Bob Glicksman; 3/24/25
+ *      - this version is fully working, but needs refinements before release
+ *      - (1)  needs new recorded clips for MN assistance
+ *      - (2)  move the clipList and offset into their own header file for easier editing
+ *      - (3)  persist vulume setting in EEPROM
  * 
  *  (c) 2025, Team Practical Projects, Bob Glicksman, Jim Schrempp.  All rights reserved.
  * 
  */
 
-#define VERSION "0.9" // This is still an in-process development version
+#define VERSION "0.9.8" // This is still an in-process development version
 
 // NOTE:  MUST USE PARTICLE OS VERSION 3.0.0 OWING TO BUGS IN MINI MP3 PLAYER LIBRARY.
   //    Specifically, some functions have non-void return value declared but no return statement.
@@ -104,6 +108,9 @@ const unsigned long DEBOUNCE_TIME = 10UL;  // time for button debouncing
 
 const uint8_t FIRST_CLIP_NUM = 11; // just for testing
 const uint8_t LAST_CLIP_NUM = 15;  // just for testing
+
+unsigned int clipList[] = {11, 12, 13, 14, 15, 100, 102, 103}; // clips to play
+const unsigned int BEGIN_DEV_NUM = 5;   // the device number reported if all ADR jumers are in
 
 // Global Variables
   // define main state variable states
@@ -157,10 +164,12 @@ int setVolume(String volumeControl) {
 
 // Cloud function to play a specified clip
 int playClip(String clipNumber) {
-    uint8_t clipNum = clipNumber.toInt();
-    if(clipNum < FIRST_CLIP_NUM) {
+    int clipNum = clipNumber.toInt();
+
+    // bound the clip number provided to some resonable limits
+    if(clipNum < 0) {
         currentClip = FIRST_CLIP_NUM;
-    } else if(clipNum > LAST_CLIP_NUM) {
+    } else if(clipNum > 256) {
         currentClip = LAST_CLIP_NUM;
     } else {
         currentClip = clipNum;
@@ -269,18 +278,73 @@ bool buttonPressed() {
 
 } // end of buttonPressed()
 
+// function to parse the event data to extract the device Number
+//  NOTE: this function is SPECIFIC to the LoRa sensor data message format, as of 3/24/25.
+//  The function must be modified if any change to the message is made.  Current message format is:
+//    message=TESTOK|deviceNum=11|payload=G m: 1 uid: 002D001104674C63000055FE|SNRhub1=10|RSSIHub1=-29
+//  The deviceNum is any number between 5 and 12.  Thus, only 2 chars are processed into a number.
+
+// #define DEBUG   // comment out to ignare debugging Serial printing
+
+unsigned int eventDatParse(String evData) {
+    unsigned int _indexNum;
+    unsigned int _devNum;
+
+    // find the index of "deviceNum ="
+#ifdef DEBUG
+    Serial.print("Message string is: ");
+    Serial.println(evData);
+#endif
+
+    _indexNum = evData.indexOf("deviceNum=");
+    _indexNum += 10;
+
+#ifdef DEBUG
+    Serial.print("Position of device number is:  ");
+    Serial.println(_indexNum);
+#endif
+
+    evData.remove(0, _indexNum);    // remove the leading part
+    evData.remove(2);   // remove all but the first two characters
+
+#ifdef DEBUG
+    Serial.print("The edited data is: ");
+    Serial.println(evData);
+#endif
+
+    _devNum = evData.toInt();
+
+#ifdef DEBUG
+    Serial.print("The returned data is: ");
+    Serial.println(_devNum);
+#endif
+
+    return _devNum;
+} // end of eventDatParse()
+
+
 /*********************** EVENT HANDLER FOR THE EVENT SUBSCRIPTION ***************************/
 // event handler for subscription to hub publication event
 void particleCallbackEventPublish(const char *event, const char *data) {
     String _eventName = String(event);
     String _eventData = String(data);
+    unsigned int _devNumber;
 
-    // XXX code here to parse the event data
-
-    // XXX temporary code - just play the current clip
-    newClip2Play = true;
+    // get the event data
     eventDataString = "";
     eventDataString += _eventData;
+
+    // parse the event data
+    _devNumber = eventDatParse(eventDataString);
+
+    // subtract the device number if ADR jumpers are all in.
+    // This is the index into the clipList array of clips to play
+    _devNumber -= BEGIN_DEV_NUM;    
+
+    // select and play the clip
+    currentClip = clipList[_devNumber];
+    newClip2Play = true;    // play the clip
+
 }   // end of particleCallbackEventPublish()
 
 
@@ -410,8 +474,6 @@ void loop() {
 
 }   // end of loop()
 
-// Code needed:
-//  1. Parse the event data and index the proper clip for that data (device ID).
 
 
 
