@@ -71,17 +71,16 @@
  *              card and not the number of the sensor from the event data that maps to a clip.
  * 
  * 
- *  version 0.9.8 (pre-release); by Bob Glicksman; 3/24/25
+ *  version 0.9.9 (pre-release); by Bob Glicksman; 3/25/25
  *      - this version is fully working, but needs refinements before release
- *      - (1)  needs new recorded clips for MN assistance
- *      - (2)  move the clipList and offset into their own header file for easier editing
- *      - (3)  persist vulume setting in EEPROM
+ *      - (1)  move the clipList and offset into their own header file for easier editing
+ *      - (2)  persist vulume setting in EEPROM
  * 
  *  (c) 2025, Team Practical Projects, Bob Glicksman, Jim Schrempp.  All rights reserved.
  * 
  */
 
-#define VERSION "0.9.8" // This is still an in-process development version
+#define VERSION "0.9.9" // This is still an in-process development version
 
 // NOTE:  MUST USE PARTICLE OS VERSION 3.0.0 OWING TO BUGS IN MINI MP3 PLAYER LIBRARY.
   //    Specifically, some functions have non-void return value declared but no return statement.
@@ -109,7 +108,7 @@ const unsigned long DEBOUNCE_TIME = 10UL;  // time for button debouncing
 const uint8_t FIRST_CLIP_NUM = 11; // just for testing
 const uint8_t LAST_CLIP_NUM = 15;  // just for testing
 
-unsigned int clipList[] = {11, 12, 13, 14, 15, 100, 102, 103}; // clips to play
+unsigned int clipList[] = {0, 1, 2, 3, 4, 5, 6, 7}; // clips to play
 const unsigned int BEGIN_DEV_NUM = 5;   // the device number reported if all ADR jumers are in
 
 // Global Variables
