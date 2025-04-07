@@ -132,7 +132,7 @@ enum ButtonStates {
 };
 
   // Other globals
-int relativeVolumeControl = 100;  // value between 0 and 100 (%); Preset to 100%
+int relativeVolumeControl = 70;  // value between 0 and 100 (%); Preset to 70%
 int currentClip = 0;    // number of the last clip played
 bool newClip2Play = false;  // set to true to indicate that there is a new clip to play
 bool greenLEDFlash = false; // set to true to start the green LED flashing; false to stop it.
