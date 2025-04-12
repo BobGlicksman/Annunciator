@@ -76,11 +76,16 @@
  *      - (1)  move the clipList and offset into their own header file for easier editing
  *      - (2)  persist vulume setting in EEPROM
  * 
+ *  version 1.0.0 (first released version); by Bob Glicksman; 4/12/25
+ *      - added:  (1) volume setting persisted in Photon 1 emulated EEPROM.  The volume
+ *          is set to this value in setup();  (2) moved the list of clips to play out to
+ *          an external header file.
+ * 
  *  (c) 2025, Team Practical Projects, Bob Glicksman, Jim Schrempp.  All rights reserved.
  * 
  */
 
-#define VERSION "0.9.9" // This is still an in-process development version
+#define VERSION "1.0.0"
 
 // NOTE:  MUST USE PARTICLE OS VERSION 3.0.0 OWING TO BUGS IN MINI MP3 PLAYER LIBRARY.
   //    Specifically, some functions have non-void return value declared but no return statement.
@@ -88,6 +93,9 @@
 
 // Include Particle Device OS APIs
 #include "Particle.h"
+
+// Include the list of the clips to play based upon the message index
+#include "ClipsList.h"
 
 // Let Device OS manage the connection to the Particle Cloud
 SYSTEM_MODE(AUTOMATIC);
@@ -101,15 +109,13 @@ SYSTEM_MODE(AUTOMATIC);
 #define STATUS_LED_PIN D7
 #define BUSY_PIN D2
 #define BUTTON_PIN A3
+#define DEFAULT_VOLUME_LEVEL 70 // the volume level is 0% to 100%
 
 const unsigned long BUSY_WAIT = 1000UL;  // Busy pin wait time
 const unsigned long DEBOUNCE_TIME = 10UL;  // time for button debouncing
 
 const uint8_t FIRST_CLIP_NUM = 11; // just for testing
 const uint8_t LAST_CLIP_NUM = 15;  // just for testing
-
-unsigned int clipList[] = {0, 1, 2, 3, 4, 5, 6, 7}; // clips to play
-const unsigned int BEGIN_DEV_NUM = 5;   // the device number reported if all ADR jumers are in
 
 // Global Variables
   // define main state variable states
@@ -132,7 +138,7 @@ enum ButtonStates {
 };
 
   // Other globals
-int relativeVolumeControl = 70;  // value between 0 and 100 (%); Preset to 70%
+int relativeVolumeControl = DEFAULT_VOLUME_LEVEL;  // value between 0 and 100 (%); Preset to 70%
 int currentClip = 0;    // number of the last clip played
 bool newClip2Play = false;  // set to true to indicate that there is a new clip to play
 bool greenLEDFlash = false; // set to true to start the green LED flashing; false to stop it.
@@ -158,6 +164,9 @@ int setVolume(String volumeControl) {
         relativeVolumeControl = volume;
     }
     
+    // place the volume level into EEPROM
+    EEPROM.put(0, relativeVolumeControl);
+
     return 0;
 }   // end of setVolume()
 
@@ -377,6 +386,16 @@ void setup() {
 
     // set initial state of green LED
     digitalWrite(GREEN_LED_PIN, LOW);
+
+    // read the last stored volume value from EEPROM
+    int vol;
+    EEPROM.get(0, vol);
+
+    // clamp the volume levels between 0 and 100 in case EEPROM not initialized
+    if ((vol < 0) || (vol > 100)){  // EEPROM not initialized, use default
+        vol = DEFAULT_VOLUME_LEVEL;
+    } 
+    relativeVolumeControl = vol;
 
     // signal end of setup
     digitalWrite(STATUS_LED_PIN, HIGH);
