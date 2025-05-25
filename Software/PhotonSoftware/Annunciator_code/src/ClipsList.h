@@ -19,4 +19,13 @@ const unsigned int BEGIN_DEV_NUM = 5;   // the device number reported if all ADR
 // This is the list of MP3 files to play based upon the numerical prefix of the file name
 //  in the /MP/ folder on the mini SD card.
 
-unsigned int clipList[] = {0, 21, 22, 23, 4, 5, 26, 27}; // clips to play
+// 0: 21 Reception Desk
+// 1: 22 Wood shop
+// 2: 23 Cold Shop
+// 3: 26 Lasers 3D
+// 4: 27 Hot shop
+// 5: 28 Electronics
+// 6: 1 sensor 6 has no audio
+// 7: 2 sensor 7 has no audio
+
+unsigned int clipList[] = {21, 22, 23, 26, 27, 28, 1, 2}; // clips to play
