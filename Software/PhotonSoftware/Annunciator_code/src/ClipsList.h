@@ -26,6 +26,6 @@ const unsigned int BEGIN_DEV_NUM = 5;   // the device number reported if all ADR
 // 4: 27 Hot shop
 // 5: 28 Electronics
 // 6: 1 sensor 6 has no audio
-// 7: 2 sensor 7 has no audio
+// 7: 24 Frontdoor
 
-unsigned int clipList[] = {21, 22, 23, 26, 27, 28, 1, 2}; // clips to play
+unsigned int clipList[] = {21, 22, 23, 26, 27, 28, 1, 24}; // clips to play
