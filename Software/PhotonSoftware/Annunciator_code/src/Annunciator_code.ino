@@ -69,7 +69,13 @@
  *          * PLAY CLIP: plays the clip whose number is the argument to this function.  NOTE:
  *              this is the actual ordinal number of the clip in the /MP3/ folder on the SD
  *              card and not the number of the sensor from the event data that maps to a clip.
- * 
+ *          * TRIGGER DEVICE NUMBER:  plays the clip associated with the device number. This 
+ *              simulates receiving an event from a sensor with the specified device number
+ *              set in its jumpers.
+ *
+ *  version 1.0.1 5/30/2025
+ *      - added cloud function to trigger a clip based upon the device number
+ *      - fixed button push when no previous clip has been played
  * 
  *  version 0.9.9 (pre-release); by Bob Glicksman; 3/25/25
  *      - this version is fully working, but needs refinements before release
@@ -85,7 +91,7 @@
  * 
  */
 
-#define VERSION "1.0.0"
+#define VERSION "1.0.1"
 
 // NOTE:  MUST USE PARTICLE OS VERSION 3.0.0 OWING TO BUGS IN MINI MP3 PLAYER LIBRARY.
   //    Specifically, some functions have non-void return value declared but no return statement.
@@ -187,6 +193,22 @@ int playClip(String clipNumber) {
     return 0;
 
 }   // end of playClip()
+
+// Cloud function to impersonate a particular device number
+int triggerDeviceNumber(String deviceNumber) {
+    int devNum = deviceNumber.toInt();
+    int currentClip = ERROR_CLIP_NUM; 
+
+    devNum -= BEGIN_DEV_NUM;    // subtract the base device number to get the index into the clipList
+    // bound the device number provided 
+    if((devNum >= 0) & (devNum < MAX_NUM_CLIPS)) {
+        currentClip = devNum;
+    } 
+
+    newClip2Play = true;    // play the clip
+    return 0;
+
+}
 
 /************************** OTHER FUNCTIONS CALLED BY SETUP OR LOOP ***************************/
 // function to flash the green LED rapidly (called from a non-blocking loop())
@@ -374,6 +396,7 @@ void setup() {
 
     Particle.function("Set Master Volume Level", setVolume); // call to set master volume level
     Particle.function("Play Clip", playClip);
+    Particle.function("Trigger Device Number", triggerDeviceNumber); // call to play a clip based on device number
 
     // subscribe to the published Particle event that triggers a clip playback
     Particle.subscribe("LoRaHubLogging", particleCallbackEventPublish, MY_DEVICES);
@@ -417,6 +440,9 @@ void loop() {
 
     // test the replay button in a non-blocking manner
     if(buttonPressed() == true) {
+        if ((currentClip < 0) | (currentClip >= MAX_NUM_CLIPS)) { // make sure the clip is in range
+            currentClip = NO_PREVIOUS_ANNOUNCEMENT; // play this clip if no previous announcement
+        } 
         newClip2Play = true;    // set the flag to play the current clip at the correct state
     }
 
