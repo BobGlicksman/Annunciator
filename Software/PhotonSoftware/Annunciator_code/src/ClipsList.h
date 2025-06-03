@@ -14,10 +14,23 @@
 */
 #include "Particle.h"
 
+const uint8_t ERROR_CLIP_NUM = 3; // clip to play if an error occurs
+const uint8_t NO_PREVIOUS_ANNOUNCEMENT = 2; // play this clip if no previous announcement when button pressed
+
 const unsigned int BEGIN_DEV_NUM = 5;   // the device number reported if all ADR jumers are in
+// xxx need to move this to a file in common with the sensor code
+// xxx which currently uses LORA_TRIP_SENSOR_ADDRESS_BASE in RangeTesSensor.ino
 
 // This is the list of MP3 files to play based upon the numerical prefix of the file name
 //  in the /MP/ folder on the mini SD card.
+
+// The index into this array is the device number minus BEGIN_DEV_NUM.  The device number
+// is the number in the message from the LoRa sensor.  The message is part of the published
+// event to the Particle cloud that the Annunciator subscribes to.  The device number is
+// the number of the sensor that triggered the event.  The device number is a two-digit
+// number, so the first two characters of the message are the device number. 
+
+const uint8_t MAX_NUM_CLIPS = 8; // number of clips in the list
 
 // 0: 21 Reception Desk
 // 1: 22 Wood shop
