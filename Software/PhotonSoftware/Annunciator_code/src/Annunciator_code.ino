@@ -197,16 +197,16 @@ int playClip(String clipNumber) {
 // Cloud function to impersonate a particular device number
 int triggerDeviceNumber(String deviceNumber) {
     int devNum = deviceNumber.toInt();
-    int currentClip = ERROR_CLIP_NUM; 
+    currentClip = ERROR_CLIP_NUM; 
 
     devNum -= BEGIN_DEV_NUM;    // subtract the base device number to get the index into the clipList
     // bound the device number provided 
     if((devNum >= 0) & (devNum < MAX_NUM_CLIPS)) {
-        currentClip = devNum;
+        currentClip = clipList[devNum];
     } 
-
+    // select and play the clip
     newClip2Play = true;    // play the clip
-    return 0;
+    return devNum;
 
 }
 
@@ -440,9 +440,11 @@ void loop() {
 
     // test the replay button in a non-blocking manner
     if(buttonPressed() == true) {
+        /*
         if ((currentClip < 0) | (currentClip >= MAX_NUM_CLIPS)) { // make sure the clip is in range
             currentClip = NO_PREVIOUS_ANNOUNCEMENT; // play this clip if no previous announcement
         } 
+        */
         newClip2Play = true;    // set the flag to play the current clip at the correct state
     }
 
