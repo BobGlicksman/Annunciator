@@ -423,6 +423,8 @@ void setup() {
     } 
     relativeVolumeControl = vol;
 
+    currentClip = NO_PREVIOUS_ANNOUNCEMENT; // no clip has been played yet
+
     // signal end of setup
     digitalWrite(STATUS_LED_PIN, HIGH);
     delay(1000);
