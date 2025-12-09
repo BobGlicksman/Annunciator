@@ -122,6 +122,8 @@ SYSTEM_MODE(AUTOMATIC);
 
 const unsigned long BUSY_WAIT = 1000UL;  // Busy pin wait time
 const unsigned long DEBOUNCE_TIME = 10UL;  // time for button debouncing
+unsigned long clipLastPlayedMS = 3000UL; // MS of last time a clip started playing
+const unsigned long MAX_MS_TO_REPLAY_A_CLIP = 300000UL; // when exceeded, the replay button plays "no previous announcement" clip
 
 const uint8_t FIRST_CLIP_NUM = 11; // just for testing
 const uint8_t LAST_CLIP_NUM = 15;  // just for testing
@@ -424,6 +426,7 @@ void setup() {
     relativeVolumeControl = vol;
 
     currentClip = NO_PREVIOUS_ANNOUNCEMENT; // no clip has been played yet
+    clipLastPlayedMS = millis(); // initialize the last played time
 
     // signal end of setup
     digitalWrite(STATUS_LED_PIN, HIGH);
@@ -445,11 +448,11 @@ void loop() {
 
     // test the replay button in a non-blocking manner
     if(buttonPressed() == true) {
-        /*
-        if ((currentClip < 0) | (currentClip >= MAX_NUM_CLIPS)) { // make sure the clip is in range
-            currentClip = NO_PREVIOUS_ANNOUNCEMENT; // play this clip if no previous announcement
-        } 
-        */
+
+        // if clip last played too long ago, play the "no previous announcement" clip
+        if((millis() - clipLastPlayedMS) > MAX_MS_TO_REPLAY_A_CLIP) {
+            currentClip = NO_PREVIOUS_ANNOUNCEMENT;
+        }
         newClip2Play = true;    // set the flag to play the current clip at the correct state
     }
 
@@ -480,6 +483,8 @@ void loop() {
                 miniMP3Player.volume((int)vol);
 
                 // play the designated clip
+                // note the time when the clip starts playing in a global variable
+                clipLastPlayedMS = millis();
                 miniMP3Player.playMp3Folder(currentClip);
                 state = clipWaiting;
             }
