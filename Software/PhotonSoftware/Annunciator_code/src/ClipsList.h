@@ -9,6 +9,8 @@
 *       code in Annunciator_code.ino if all you are changing is the definition of which
 *       MP3 clip to play 
 *
+*   Speech generatatiom was done with https://luvvoice.com/
+*
 *   (c) 2025; Team Practicle Projects, Bob Glicksman, Jim Schrempp
 *       All rights reserved.
 */
@@ -32,13 +34,14 @@ const unsigned int BEGIN_DEV_NUM = 5;   // the device number reported if all ADR
 
 const uint8_t MAX_NUM_CLIPS = 15; // number of clips in the list
 
+// deviceNum: clipFileNum  Description
 // 0: 21 Reception Desk
 // 1: 22 Wood shop
 // 2: 23 Cold Shop
 // 3: 26 Lasers 3D
 // 4: 27 Hot shop
 // 5: 28 Electronics
-// 6: 1 sensor 6 has no audio
+// 6: 1 3D printers
 // 7: 24 Frontdoor
 // 8: 200 Close in 30 minutes
 // 9: 201 Close in 15 minutes
